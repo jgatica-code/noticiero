@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Noticiero Corporativo</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body, html { 
+    width: 100%; height: 100%; 
+    background-color: #0a0a0a; 
+    overflow: hidden; 
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  /* Contenedor principal de imágenes */
+  #contenedor-visor {
+    width: 100%;
+    height: calc(100% - 75px); /* Deja espacio exacto para la barra inferior */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+  }
+
+  #visor {
+    max-width: 100%;
+    max-height: 100%;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    transition: opacity 0.8s ease-in-out;
+  }
+
+  /* Overlay inferior (Noticias + Clima + Hora) */
+  #barra-inferior {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 75px;
+    background: linear-gradient(90deg, #002b5c 0%, #004c99 100%); /* Color corporativo */
+    color: white;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 -4px 15px rgba(0,0,0,0.5);
+    z-index: 10;
+  }
+
+  /* Caja de Hora y Clima */
+  #info-clima-hora {
+    background-color: #001d3d;
+    height: 100%;
+    padding: 0 25px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    font-weight: bold;
+    border-right: 3px solid #00a8e8;
+    white-space: nowrap;
+  }
+
+  #reloj { font-size: 28px; letter-spacing: 1px; }
+  #clima { font-size: 24px; color: #72efdd; }
+
+  /* Cintillo de noticias en movimiento */
+  #ticker-contenedor {
+    flex-grow: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    padding: 0 20px;
+  }
+
+  #ticker-texto {
+    display: inline-block;
+    font-size: 26px;
+    font-weight: 500;
+    padding-left: 100%;
+    animation: desplazamiento 25s linear infinite;
+  }
+
+  @keyframes desplazamiento {
+    0%   { transform: translate(0, 0); }
+    100% { transform: translate(-100%, 0); }
+  }
+</style>
+</head>
+<body>
+
+  <div id="contenedor-visor">
+    <img id="visor" src="" alt="Cargando contenido...">
+  </div>
+
+  <div id="barra-inferior">
+    <div id="info-clima-hora">
+      <div id="reloj">--:--</div>
+      <div id="clima">Cargando clima...</div>
+    </div>
+    <div id="ticker-contenedor">
+      <div id="ticker-texto">
+        Bienvenidos • Recuerda revisar los comunicados internos de esta semana • Mantengamos nuestros espacios ordenados y seguros.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ==========================================
+    // CONFIGURACIÓN DE TU REPOSITORIO GITHUB
+    // ==========================================
+    const USUARIO_GITHUB = "TU_USUARIO_AQUI";      // Ej: "josegatica"
+    const REPO_GITHUB    = "noticiero";            // Nombre del repositorio
+    const CARPETA_FOTOS  = "imagenes";             // Carpeta dentro del repo
+    const TIEMPO_SLIDE   = 8000;                   // 8 segundos por imagen
+
+    let listaImagenes = [];
+    let indice = 0;
+    const visor = document.getElementById('visor');
+
+    // 1. Obtener lista de imágenes automáticamente desde GitHub
+    async function actualizarListaImagenes() {
+      try {
+        const urlApi = `https://api.github.com/repos/${USUARIO_GITHUB}/${REPO_GITHUB}/contents/${CARPETA_FOTOS}`;
+        const respuesta = await fetch(urlApi);
+        const archivos = await respuesta.json();
+
+        if (Array.isArray(archivos)) {
+          // Filtra solo archivos de imagen válidos
+          const nuevasImagenes = archivos
+            .filter(archivo => archivo.name.match(/\.(jpg|jpeg|png|gif|webp)$/i))
+            .map(archivo => archivo.download_url);
+
+          if (nuevasImagenes.length > 0) {
+            listaImagenes = nuevasImagenes;
+          }
+        }
+      } catch (error) {
+        console.error("Error leyendo carpeta de GitHub:", error);
+      }
+    }
+
+    // 2. Rotar las imágenes en pantalla
+    function mostrarSiguienteImagen() {
+      if (listaImagenes.length === 0) return;
+
+      visor.style.opacity = 0;
+      setTimeout(() => {
+        if (indice >= listaImagenes.length) indice = 0;
+        visor.src = listaImagenes[indice];
+        visor.style.opacity = 1;
+        indice++;
+      }, 600);
+    }
+
+    // 3. Actualizar reloj en tiempo real
+    function actualizarReloj() {
+      const ahora = new Date();
+      const horas = String(ahora.getHours()).padStart(2, '0');
+      const minutos = String(ahora.getMinutes()).padStart(2, '0');
+      document.getElementById('reloj').textContent = `${horas}:${minutos}`;
+    }
+
+    // 4. Obtener temperatura actual en Santiago (Open-Meteo API gratuita)
+    async function actualizarClima() {
+      try {
+        // Coordenadas de Santiago (-33.45, -70.66)
+        const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=-33.45&longitude=-70.66&current_weather=true');
+        const data = await res.json();
+        const temp = Math.round(data.current_weather.temperature);
+        document.getElementById('clima').textContent = `${temp}°C Santiago`;
+      } catch (e) {
+        document.getElementById('clima').textContent = "";
+      }
+    }
+
+    // Inicialización
+    (async function iniciar() {
+      actualizarReloj();
+      actualizarClima();
+      await actualizarListaImagenes();
+      mostrarSiguienteImagen();
+
+      setInterval(actualizarReloj, 10000);           // Actualiza hora cada 10 seg
+      setInterval(actualizarClima, 1800000);         // Actualiza clima cada 30 min
+      setInterval(actualizarListaImagenes, 120000);  // Busca fotos nuevas cada 2 min
+      setInterval(mostrarSiguienteImagen, TIEMPO_SLIDE);
+    })();
+  </script>
+</body>
+</html>
