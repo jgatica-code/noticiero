@@ -13,12 +13,14 @@ jobs:
       - name: Descargar repositorio
         uses: actions/checkout@v4
 
-      - name: Guardar archivo de imagen
+      - name: Descargar imagen desde SharePoint
         env:
           NOMBRE: ${{ github.event.client_payload.nombre }}
-          CONTENIDO: ${{ github.event.client_payload.contenido }}
+          URL_SHAREPOINT: ${{ github.event.client_payload.url }}
         run: |
-          echo "$CONTENIDO" | base64 --decode > "$NOMBRE"
+          # Convierte el enlace de vista de SharePoint en enlace de descarga directa
+          URL_DESCARGA="${URL_SHAREPOINT}?download=1"
+          curl -L -s "$URL_DESCARGA" -o "$NOMBRE"
 
       - name: Subir cambios a GitHub
         run: |
