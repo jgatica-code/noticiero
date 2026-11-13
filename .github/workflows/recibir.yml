@@ -18,13 +18,12 @@ jobs:
           NOMBRE: ${{ github.event.client_payload.nombre }}
           CONTENIDO: ${{ github.event.client_payload.contenido }}
         run: |
-          mkdir -p imagenes
-          echo "$CONTENIDO" | base64 --decode > "imagenes/$NOMBRE"
+          echo "$CONTENIDO" | base64 --decode > "$NOMBRE"
 
       - name: Subir cambios a GitHub
         run: |
           git config user.name "Noticiero Bot"
           git config user.email "bot@noticiero.local"
-          git add imagenes/
+          git add .
           git commit -m "Nueva imagen desde SharePoint" || exit 0
           git push
