@@ -1,0 +1,34 @@
+name: Recibir imagen desde Issue
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  guardar-imagen:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Decodificar y guardar imagen
+        env:
+          NOMBRE: ${{ github.event.issue.title }}
+          CONTENIDO: ${{ github.event.issue.body }}
+        run: |
+          echo "$CONTENIDO" | tr -d '\r\n' | base64 --decode > "$NOMBRE"
+
+      - name: Subir imagen y cerrar Issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUM: ${{ github.event.issue.number }}
+        run: |
+          git config user.name "Noticiero Bot"
+          git config user.email "bot@noticiero.local"
+          git add .
+          git commit -m "Nueva imagen: $NOMBRE" || exit 0
+          git push
+          gh issue close "$ISSUE_NUM" --repo "${{ github.repository }}"
