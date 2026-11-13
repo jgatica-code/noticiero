@@ -1,0 +1,30 @@
+name: Recibir imagen desde SharePoint
+on:
+  repository_dispatch:
+    types: [nueva_imagen]
+
+permissions:
+  contents: write
+
+jobs:
+  guardar-imagen:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Guardar archivo de imagen
+        env:
+          NOMBRE: ${{ github.event.client_payload.nombre }}
+          CONTENIDO: ${{ github.event.client_payload.contenido }}
+        run: |
+          mkdir -p imagenes
+          echo "$CONTENIDO" | base64 --decode > "imagenes/$NOMBRE"
+
+      - name: Subir cambios a GitHub
+        run: |
+          git config user.name "Noticiero Bot"
+          git config user.email "bot@noticiero.local"
+          git add imagenes/
+          git commit -m "Nueva imagen desde SharePoint" || exit 0
+          git push
